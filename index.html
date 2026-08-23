@@ -82,15 +82,12 @@ button:active { transform: scale(0.97); }
 <body data-theme="light">
 
 <div class="app-container">
-    <section class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 700; font-size: 1.1rem;">OLED Touch Painter</span>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">GelectronLAB • Mini MicroKit PT-L V1.0</span>
-        </div>
+    <section class="card" style="align-items: center; text-align: center;">
+        <span style="font-weight: 700; font-size: 1.1rem;">OLED Touch Painter</span>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">GelectronLAB • Mini MicroKit PT-L V1.0</span>
     </section>
 
     <section class="card" style="flex: 1; justify-content: center; align-items: center;">
-        <!-- ย้ายปุ่มสลับธีมมาไว้บรรทัดเดียวกับหัวข้อ และนำ Touch Screen Ready ออก -->
         <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
             <span>Virtual OLED (128x64)</span>
             <button class="btn-secondary" onclick="toggleTheme()">Switch Theme</button>
