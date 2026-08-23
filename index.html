@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>OLED Painter</title>
+<style>
+:root {
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --accent: #2563eb;
+    --border: #e2e8f0;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+[data-theme='dark'] {
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --border: #334155;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+}
+
+* { box-sizing: border-box; }
+html, body {
+    margin: 0; padding: 0; width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; background-color: var(--bg-color); color: var(--text-main);
+    font-family: sans-serif; display: flex; justify-content: center; align-items: center;
+}
+
+.app-container {
+    width: 100%; max-width: 480px; height: 100%; max-height: 100vh;
+    padding: 8px; display: flex; flex-direction: column; gap: 6px; justify-content: space-between;
+}
+
+.card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column;
+}
+
+.canvas-box {
+    width: 100%; flex: 1; min-height: 42vh; background: #000; border-radius: 8px;
+    overflow: hidden; display: flex; justify-content: center; align-items: center;
+    position: relative; margin-top: 6px; margin-bottom: 6px; touch-action: none;
+    border: 2px solid var(--border);
+}
+canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+
+.controls { display: flex; gap: 6px; margin-bottom: 4px; }
+.bottom-controls { display: flex; gap: 6px; }
+
+button {
+    padding: 10px 12px; border-radius: 8px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+
+.btn-clear { background: #ef4444; color: white; flex: 1; }
+.btn-send { background: var(--accent); color: white; flex: 1; }
+.btn-secondary { background: var(--border); color: var(--text-main); flex: 1; font-size: 0.8rem; }
+
+.result-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+}
+</style>
+</head>
+<body data-theme="light">
+
+<div class="app-container">
+    <!-- ส่วนตั้งค่า ESP32 IP Address -->
+    <section class="card">
+        <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px; color: var(--text-muted);">ESP32 IP Address</div>
+        <div style="display: flex; gap: 6px;">
+            <input type="text" id="ip-input" placeholder="เช่น http://192.168.1.50" style="flex:1; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-color); color: var(--text-main); font-size: 0.85rem;">
+            <button onclick="saveIP()" style="background: var(--accent); color: white; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem;">บันทึก</button>
+        </div>
+    </section>
+
+    <!-- ส่วนแสดงพื้นที่วาดภาพและการควบคุม -->
+    <section class="card" style="flex: 1; justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; font-size: 1.1rem;">OLED Painter</span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Mini MicroKit PT-L V1.0</span>
+        </div>
+        
+        <div class="canvas-box">
+            <canvas id="drawCanvas" width="128" height="64"></canvas>
+        </div>
+        
+        <div>
+            <div class="controls">
+                <button class="btn-clear" onclick="clearCanvas()">ลบหน้าจอ</button>
+                <button class="btn-send" onclick="sendImage()">ส่งภาพไป OLED</button>
+            </div>
+            <div class="bottom-controls">
+                <button class="btn-secondary" onclick="testConnection()">ทดสอบเชื่อมต่อ</button>
+                <button class="btn-secondary" onclick="toggleTheme()">เปลี่ยนธีม</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ส่วนแสดงผลสถานะ -->
+    <section class="card">
+        <div style="color: var(--text-muted); font-size: 0.75rem; font-weight: 600;">สถานะระบบ</div>
+        <div class="result-footer">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">สถานะการส่ง : <b id="esp-status" style="color: #64748b;">ยังไม่ได้ส่งข้อมูล</b></span>
+        </div>
+    </section>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    document.body.dataset.theme = savedTheme;
+
+    let savedIp = localStorage.getItem("esp_ip") || "http://192.168.4.1";
+    document.getElementById("ip-input").value = savedIp;
+
+    initCanvas();
+});
+
+function saveIP() {
+    const val = document.getElementById("ip-input").value.trim();
+    if (!val) {
+        alert("กรุณากรอก IP Address ให้ถูกต้อง");
+        return;
+    }
+    localStorage.setItem("esp_ip", val);
+    alert("บันทึก IP เรียบร้อยแล้ว: " + val);
+}
+
+function toggleTheme() {
+    const body = document.body;
+    const currentTheme = body.dataset.theme === 'dark' ? 'light' : 'dark';
+    body.dataset.theme = currentTheme;
+    localStorage.setItem("theme", currentTheme);
+}
+
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+let isDrawing = false;
+
+function initCanvas() {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: Math.floor((clientX - rect.left) * (canvas.width / rect.width)),
+        y: Math.floor((clientY - rect.top) * (canvas.height / rect.height))
+    };
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+window.addEventListener('mouseup', endDraw);
+
+canvas.addEventListener('touchstart', startDraw);
+canvas.addEventListener('touchmove', draw);
+window.addEventListener('touchend', endDraw);
+
+function startDraw(e) { isDrawing = true; draw(e); }
+function endDraw() { isDrawing = false; ctx.beginPath(); }
+
+function draw(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+}
+
+function clearCanvas() {
+    initCanvas();
+    document.getElementById("esp-status").textContent = "ลบหน้าจอแล้ว";
+    document.getElementById("esp-status").style.color = "#64748b";
+}
+
+async function sendImage() {
+    let baseUrl = document.getElementById("ip-input").value.trim();
+    if (!baseUrl) {
+        alert("กรุณากรอก IP Address ก่อนส่งข้อมูล");
+        return;
+    }
+    const targetUrl = baseUrl.endsWith("/") ? baseUrl + "update" : baseUrl + "/update";
+
+    const imgData = ctx.getImageData(0, 0, 128, 64);
+    let rawBytes = [];
+    
+    for (let y = 0; y < 64; y += 8) {
+        for (let x = 0; x < 128; x++) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+                let py = y + bit;
+                let idx = (py * 128 + x) * 4;
+                if (imgData.data[idx] > 128) {
+                    byte |= (1 << bit);
+                }
+            }
+            rawBytes.push(byte);
+        }
+    }
+
+    document.getElementById("esp-status").textContent = "กำลังส่ง...";
+    document.getElementById("esp-status").style.color = "#2563eb";
+
+    try {
+        let response = await fetch(targetUrl, {
+            method: 'POST',
+            body: new Uint8Array(rawBytes)
+        });
+
+        if (response.ok) {
+            document.getElementById("esp-status").textContent = "ส่งภาพสำเร็จ!";
+            document.getElementById("esp-status").style.color = "#16a34a";
+        } else {
+            throw new Error("Server error");
+        }
+    } catch(err) {
+        document.getElementById("esp-status").textContent = "เชื่อมต่อล้มเหลว";
+        document.getElementById("esp-status").style.color = "#ef4444";
+        alert("ไม่สามารถเชื่อมต่อกับบอร์ดได้ กรุณาตรวจสอบ Wi-Fi และ IP Address");
+    }
+}
+
+async function testConnection() {
+    await sendImage();
+}
+</script>
+
+</body>
+</html>
