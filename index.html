@@ -225,19 +225,24 @@ function sendDrawing() {
         return;
     }
 
-    // ดึงข้อมูลพิกเซล (128x64) เพื่อแปลงเป็นข้อมูลขาว/ดำสำหรับจอ OLED
+    // ดึงข้อมูลพิกเซลจาก Canvas (128x64 พิกเซล)
     const imgData = ctx.getImageData(0, 0, 128, 64);
-    let rawData = "";
+    const data = imgData.data;
+    
+    // แปลงพิกเซลสีขาว/ดำ เป็นไบต์ (1 ไบต์เก็บได้ 8 พิกเซลแนวตั้ง หรือแปลงเป็นรูปแบบที่ส่งง่าย)
+    // เพื่อความง่ายและเร็ว เราจะส่งเป็นสตริง '1' (จุดสีขาว) และ '0' (จุดสีดำ) ความยาว 8192 ตัว
+    let pixelString = "";
+    for (let i = 0; i < data.length; i += 4) {
+        // เช็คความสว่าง ถ้าสว่าง (สีขาว) ให้เป็น '1' ถ้ามืด (สีดำ) ให้เป็น '0'
+        let avg = (data[i] + data[i+1] + data[i+2]) / 3;
+        pixelString += (avg > 128) ? "1" : "0";
+    }
 
-    // ตัวอย่างการส่งข้อมูลแบบย่อส่วนพิกเซล หรือส่งภาพแบบคอมเพรส
-    // เพื่อความเสถียร สามารถส่งข้อมูลผ่าน Base64 หรือ Bitmap Array ตามที่ฝั่งบอร์ดรองรับ
-    let dataURL = canvas.toDataURL("image/png");
-
-    let message = new Paho.MQTT.Message(dataURL);
+    let message = new Paho.MQTT.Message(pixelString);
     message.destinationName = mqttTopic;
     mqttClient.send(message);
 
-    document.getElementById("send-status").textContent = "ส่งลายเส้นไปที่บอร์ดแล้ว!";
+    document.getElementById("send-status").textContent = "ส่งภาพไปที่บอร์ดแล้ว!";
     document.getElementById("send-status").style.color = "#16a34a";
 }
 </script>
