@@ -1,1 +1,1 @@
-# OLED-Painter
+# OLED Touch Painter
