@@ -70,7 +70,7 @@ button:active { transform: scale(0.97); }
 
 .btn-primary { background: var(--accent); color: white; flex: 2; }
 .btn-danger { background: #ef4444; color: white; flex: 1; }
-.btn-secondary { background: var(--border); color: var(--text-main); font-size: 0.75rem; padding: 6px 10px; }
+.btn-secondary { background: var(--border); color: var(--text-main); font-size: 0.75rem; padding: 4px 10px; }
 
 .result-footer {
     display: flex;
@@ -85,15 +85,15 @@ button:active { transform: scale(0.97); }
     <section class="card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-weight: 700; font-size: 1.1rem;">OLED Touch Painter</span>
-            <button class="btn-secondary" onclick="toggleTheme()">Switch Theme</button>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">GelectronLAB • Mini MicroKit PT-L V1.0</span>
         </div>
-        <div style="font-size: 0.75rem; color: var(--text-muted);">GelectronLAB • Mini MicroKit PT-L</div>
     </section>
 
     <section class="card" style="flex: 1; justify-content: center; align-items: center;">
-        <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
+        <!-- ย้ายปุ่มสลับธีมมาไว้บรรทัดเดียวกับหัวข้อ และนำ Touch Screen Ready ออก -->
+        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
             <span>Virtual OLED (128x64)</span>
-            <span>Touch Screen Ready</span>
+            <button class="btn-secondary" onclick="toggleTheme()">Switch Theme</button>
         </div>
         
         <div class="canvas-box">
@@ -108,7 +108,7 @@ button:active { transform: scale(0.97); }
 
     <section class="card">
         <div class="result-footer">
-            <span style="font-size: 0.75rem; color: var(--text-muted);">MQTT : <b id="mqtt-status" style="color: #ef4444;">Connecting...</b></span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">สถานะ : <b id="mqtt-status" style="color: #ef4444;">Connecting...</b></span>
             <span style="font-size: 0.75rem; color: var(--accent);" id="send-status">พร้อมใช้งาน</span>
         </div>
     </section>
@@ -174,7 +174,6 @@ function clearCanvas() {
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // ส่งคำสั่งเคลียร์หน้าจอไปที่บอร์ดทันที (ถ้าต้องการ)
     if (mqttClient && mqttClient.isConnected()) {
         let message = new Paho.MQTT.Message("CLEAR");
         message.destinationName = mqttTopic;
@@ -218,7 +217,6 @@ function connectMQTT() {
 
 connectMQTT();
 
-// ฟังก์ชันส่งข้อมูลภาพจาก Canvas ไปยังบอร์ด (แปลงเป็นพิกเซลไบนารีหรือข้อมูลที่บอร์ดนำไปประมวลผลต่อได้ง่าย)
 function sendDrawing() {
     if (!mqttClient.isConnected()) {
         alert("ยังไม่ได้เชื่อมต่อ MQTT Broker!");
@@ -231,7 +229,7 @@ function sendDrawing() {
     let pixelString = "";
     for (let i = 0; i < data.length; i += 4) {
         let avg = (data[i] + data[i+1] + data[i+2]) / 3;
-        pixelString += (avg > 128) ? "1" : "0"; // 1 = ขาว (เส้นที่วาด), 0 = ดำ (พื้นหลัง)
+        pixelString += (avg > 128) ? "1" : "0";
     }
 
     let message = new Paho.MQTT.Message(pixelString);
